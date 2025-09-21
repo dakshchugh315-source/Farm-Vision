@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>FarmVision — Health Scanner</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
+
+    <style>
+        body { 
+            color: #f0fdf4;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto; 
+        }
+        .drag-over { 
+            border-color:#f97316 !important; 
+            background-color: rgba(249,115,22,0.06); 
+        }
+        .green-pasture-bg {
+            background-image: url('https://wallpapershome.com/images/pages/pic_h/19901.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        .green-pasture-bg::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(17, 24, 39, 0.65);
+            z-index: -1;
+        }
+        .card {
+            background-color: rgba(17, 24, 39, 0.85);
+        }
+        .profile-card {
+            background-color: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-6 green-pasture-bg">
+
+    <nav class="navbar w-full max-w-6xl mb-6 bg-base-100/80 backdrop-blur rounded-xl">
+        <div class="flex-1">
+            <a class="btn btn-ghost normal-case text-lg">FarmVision</a>
+        </div>
+        <div class="flex-none">
+            <ul class="menu menu-horizontal px-1">
+                <li><a href="classifier.html">Classifier</a></li>
+                <li><a href="live-camera.html">Live Camera</a></li>
+                <li><a href="health.html">Health Scan</a></li>
+                <li><a href="history.html">History</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="w-full max-w-4xl mb-6 profile-card rounded-xl p-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div id="profileAvatar" class="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-red-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg">U</div>
+        <div>
+          <p id="profileName" class="text-xl font-extrabold text-white drop-shadow-md">Welcome</p>
+          <p class="text-sm text-gray-200">Health Scanner Mode</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="dropZone" class="w-full max-w-2xl border-2 border-dashed border-gray-600 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition">
+        <h2 class="text-lg font-semibold mb-1">Upload Health Image</h2>
+        <p class="text-sm text-gray-400 mb-4">Upload a clear photo of the animal's affected area (e.g., skin, eye, injury).</p>
+        <label for="fileInput" class="btn btn-warning">Choose File</label>
+        <input id="fileInput" type="file" accept="image/*" class="hidden" />
+    </div>
+
+    <div id="previewArea" class="w-full max-w-2xl mt-6 hidden">
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="w-full md:w-1/3">
+                        <div class="w-full h-48 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
+                            <img id="imagePreview" src="" alt="preview" class="object-contain w-full h-full"/>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-400" id="fileInfo"></div>
+                    </div>
+
+                    <div class="w-full md:w-2/3">
+                        <div id="loadingIndicator" class="hidden flex items-center gap-3">
+                            <span class="loading loading-spinner loading-lg text-warning"></span>
+                            <div>
+                                <div class="font-semibold">Analyzing health indicators…</div>
+                                <div class="text-xs text-gray-400">This might take a moment.</div>
+                            </div>
+                        </div>
+
+                        <div id="resultBox" class="hidden space-y-4">
+                            <h3 class="text-lg font-bold">Health Analysis</h3>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-300">Possible Condition</p>
+                                <p id="conditionText" class="text-xl font-bold text-warning"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-300">Key Symptoms to Check</p>
+                                <p id="symptomsText" class="text-xs text-gray-200 whitespace-pre-line"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-300">Recommended First-Aid</p>
+                                <p id="firstAidText" class="text-xs text-gray-200 whitespace-pre-line"></p>
+                            </div>
+                            <div id="disclaimerPanel" class="alert alert-error">
+                                <div>
+                                    <h3 class="font-bold">Important Disclaimer!</h3>
+                                    <div id="disclaimerText" class="text-xs"></div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button id="urgentHelpBtn" class="btn btn-error">Urgent Help</button>
+                                <button id="saveResultBtn" class="btn btn-outline">Save to History</button>
+                                <button id="getInfoBtn" class="btn btn-info">Get Info</button>
+                            </div>
+                            <!-- Info Panel -->
+                            <div id="infoPanel" class="hidden mt-4 p-3 bg-base-200 rounded-lg text-sm text-gray-200"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="urgentHelpModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div class="modal-box bg-gray-800 text-white max-w-sm">
+            <h3 id="modalTitle" class="font-bold text-lg text-error">Confirm Urgent Help Request</h3>
+            <p id="modalMessage" class="py-4 text-sm">This will find your current location and send an SMS alert to the nearest veterinarian. Do you want to proceed?</p>
+            <div id="modalActions" class="modal-action">
+                <button id="confirmHelpBtn" class="btn btn-error">Yes, Send Alert</button>
+                <button id="cancelHelpBtn" class="btn btn-ghost">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- Configuration - Move these to environment variables in production ---
+        // --- Configuration - Move these to environment variables in production ---
+        const CONFIG = {
+            GEMINI_API_KEYS: [
+                "AIzaSyASt6sFVBV3WaLd4nx-Px1j3g8p6SNx9po",
+                "AIzaSyDyGUvcbFrTAlYTlB8_WfP-pM6WzYrk9_4",
+                "AIzaSyCQyn4iw3VSBPGvRjQTNtwwbBrqzcvT1js",
+                "AIzaSyB0iQpWQhrQAl15FwZlJvg7o4jN1aJ633o",
+                "AIzaSyDdmhYhmAj8bn2KjpZBWapW6tstcBD4ExQ",
+                "AIzaSyDFI5IYOWJ0cgcuCjaxafMP2ytXnQqaDmY",
+                "AIzaSyCuDX69JcqIAJOGYmVKwqfk29LO2L4WC84",
+                "AIzaSyA6-jCT9H6K5r7XQGaGfixNHE3YbltXQfk",
+                "AIzaSyB7yKlXxVlameWffa_z01_ONoxliUTbz-A",
+                "AIzaSyDBBsJKYsBeBfTHGlTVS0zrPzU9RGRTzvo",
+                "AIzaSyD0er5d35Wf67y08MBmei9DzYipnWXvYPQ",
+                "AIzaSyAdNfpG7x-is-cq4oEP48DMqNAdB28PgJc",
+                "AIzaSyD0er5d35Wf67y08MBmei9DzYipnWXvYPQ"
+            ],
+            TWILIO: {
+                accountSid: 'AC88c361121f8dbb13c0602152dcbcd096',
+                authToken: '2aac34bbe408108cc6bdd17bca74a53a',
+                phoneNumber: '+1 227 238 1017' // Your Twilio number
+            }
+        };
+
+        let currentKeyIndex = 0;
+
+        function getCurrentApiKey() {
+            return CONFIG.GEMINI_API_KEYS[currentKeyIndex];
+        }
+
+        function switchToNextKey() {
+            currentKeyIndex++;
+            return currentKeyIndex < CONFIG.GEMINI_API_KEYS.length;
+        }
+
+        // --- Sample Database of Veterinarians for Prototype ---
+        const vetDatabase = [
+            { name: "South Delhi Pet Clinic", phone: "+919876543210", lat: 28.55, lon: 77.22 },
+            { name: "East Delhi Vet Care", phone: "+919876543211", lat: 28.63, lon: 77.31 },
+            { name: "West Delhi Animal Hospital", phone: "+919876543212", lat: 28.66, lon: 77.10 },
+            { name: "North Delhi Animal Care", phone: "+919876543213", lat: 28.70, lon: 77.18 }
+        ];
+
+        // --- DOM Elements ---
+        const dropZone = document.getElementById("dropZone");
+        const fileInput = document.getElementById("fileInput");
+        const previewArea = document.getElementById("previewArea");
+        const imagePreview = document.getElementById("imagePreview");
+        const fileInfo = document.getElementById("fileInfo");
+        const loadingIndicator = document.getElementById("loadingIndicator");
+        const resultBox = document.getElementById("resultBox");
+        const conditionText = document.getElementById("conditionText");
+        const symptomsText = document.getElementById("symptomsText");
+        const firstAidText = document.getElementById("firstAidText");
+        const disclaimerText = document.getElementById("disclaimerText");
+        const saveResultBtn = document.getElementById("saveResultBtn");
+        const urgentHelpBtn = document.getElementById("urgentHelpBtn");
+        const urgentHelpModal = document.getElementById("urgentHelpModal");
+        const confirmHelpBtn = document.getElementById("confirmHelpBtn");
+        const cancelHelpBtn = document.getElementById("cancelHelpBtn");
+        const modalTitle = document.getElementById("modalTitle");
+        const modalMessage = document.getElementById("modalMessage");
+        const modalActions = document.getElementById("modalActions");
+        const getInfoBtn = document.getElementById("getInfoBtn");
+        const infoPanel = document.getElementById("infoPanel");
+
+        let currentImageDataUrl = "";
+        
+        // --- Profile Info ---
+        const storedName = localStorage.getItem('userName') || 'User';
+        document.getElementById('profileName').textContent = storedName;
+        document.getElementById('profileAvatar').textContent = storedName.charAt(0).toUpperCase();
+
+        // --- Event Listeners ---
+        dropZone.addEventListener("click", () => fileInput.click());
+        dropZone.addEventListener("dragover", (e) => { 
+            e.preventDefault(); 
+            dropZone.classList.add("drag-over"); 
+        });
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+        dropZone.addEventListener("drop", (e) => { 
+            e.preventDefault(); 
+            dropZone.classList.remove("drag-over"); 
+            if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]); 
+        });
+        fileInput.addEventListener("change", (e) => { 
+            if (e.target.files.length) processFile(e.target.files[0]); 
+        });
+
+        function extractTextFromResponse(obj) {
+            if (!obj) return null;
+            if (typeof obj === "string") return obj;
+            if (Array.isArray(obj)) return obj.map(extractTextFromResponse).join(" ");
+            if (typeof obj === "object") {
+                if (obj.candidates && Array.isArray(obj.candidates)) {
+                    return extractTextFromResponse(obj.candidates[0]);
+                }
+                if (obj.content && obj.content.parts) {
+                    return obj.content.parts.map(p => p.text || "").join(" ");
+                }
+                return Object.values(obj).map(extractTextFromResponse).join(" ");
+            }
+            return null;
+        }
+
+        async function callGeminiAPI(payload) {
+            let success = false;
+            let lastError = null;
+            
+            while (currentKeyIndex < CONFIG.GEMINI_API_KEYS.length && !success) {
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${encodeURIComponent(getCurrentApiKey())}`;
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 403 || response.status === 429) {
+                            if (!switchToNextKey()) {
+                                throw new Error("All API keys exhausted.");
+                            }
+                            continue;
+                        }
+                        throw new Error(`API Error: ${response.status}`);
+                    }
+                    
+                    const json = await response.json();
+                    const text = extractTextFromResponse(json);
+                    if (!text) throw new Error("No valid response from AI.");
+                    
+                    return text;
+                } catch (err) {
+                    lastError = err;
+                    if (!switchToNextKey()) {
+                        throw lastError;
+                    }
+                }
+            }
+            
+            throw lastError || new Error("Failed to get response from API");
+        }
+
+        async function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const dataUrl = ev.target.result;
+                currentImageDataUrl = dataUrl;
+                imagePreview.src = dataUrl;
+                fileInfo.textContent = `${file.name} • ${(file.size / 1024 | 0)} KB`;
+                previewArea.classList.remove("hidden");
+                resultBox.classList.add("hidden");
+                infoPanel.classList.add("hidden");
+                loadingIndicator.classList.remove("hidden");
+
+                const base64 = dataUrl.split(",")[1];
+                
+                const prompt = `Analyze this image of a cattle/buffalo for signs of disease or injury. Be concise and practical for a farmer. The response MUST be in the following format and nothing else:
+Condition: [Most likely condition, e.g., "Ringworm (Dermatophytosis)" or "Pink Eye (Infectious Keratoconjunctivitis)"].
+Symptoms: [Bulleted list of 2-3 key visual symptoms to confirm, e.g., "- Circular, scaly patches of hair loss\n- Grayish-white crusts"].
+First-Aid: [Bulleted list of 2-3 immediate, non-prescription first aid steps, e.g., "- Isolate the animal to prevent spread\n- Clean the area gently with antiseptic solution"].
+Disclaimer: [This exact text: This is an AI suggestion and not a substitute for professional veterinary diagnosis. Always consult a qualified veterinarian for accurate diagnosis and treatment.].`;
+                
+                const payload = { 
+                    contents: [{ 
+                        parts: [
+                            { text: prompt }, 
+                            { inlineData: { mimeType: file.type, data: base64 } }
+                        ] 
+                    }] 
+                };
+
+                try {
+                    const text = await callGeminiAPI(payload);
+                    displayResult(text, file.name, dataUrl);
+                } catch (error) {
+                    console.error("Error during analysis:", error);
+                    resultBox.classList.remove("hidden");
+                    conditionText.textContent = "Analysis Failed";
+                    symptomsText.textContent = `Could not connect to the AI service: ${error.message}. Please check your configuration and try again.`;
+                    firstAidText.textContent = "";
+                    disclaimerText.textContent = "";
+                } finally {
+                    loadingIndicator.classList.add("hidden");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayResult(fullText, imageName = "", dataUrl = "") {
+            const get = (rx) => (fullText.match(rx)?.[1] || "N/A").trim();
+            const condition = get(/Condition: ([\s\S]*?)(?=Symptoms:|$)/);
+            const symptoms = get(/Symptoms: ([\s\S]*?)(?=First-Aid:|$)/);
+            const firstAid = get(/First-Aid: ([\s\S]*?)(?=Disclaimer:|$)/);
+            const disclaimer = get(/Disclaimer: ([\s\S]*)/);
+
+            resultBox.classList.remove("hidden");
+            conditionText.textContent = condition;
+            symptomsText.textContent = symptoms;
+            firstAidText.textContent = firstAid;
+            disclaimerText.textContent = disclaimer;
+
+            saveResultBtn.onclick = () => {
+                const history = JSON.parse(localStorage.getItem("farmVisionHistory") || "[]");
+                history.unshift({
+                    timestamp: new Date().toLocaleString(),
+                    verdict: "Health Scan",
+                    breed: condition,
+                    confidence: "90%",
+                    explanation: `Symptoms: ${symptoms}\n\nFirst-Aid: ${firstAid}`,
+                    disclaimer: disclaimer,
+                    imageData: dataUrl,
+                    name: imageName
+                });
+                localStorage.setItem("farmVisionHistory", JSON.stringify(history.slice(0, 200)));
+                alert("Health scan result saved to history.");
+            }
+        }
+
+        // --- Get Info Button Logic ---
+getInfoBtn.addEventListener("click", async () => {
+    const disease = conditionText.textContent.trim();
+    if (!disease || disease === "N/A" || disease === "Analysis Failed") {
+        infoPanel.textContent = "No disease identified to fetch info.";
+        infoPanel.classList.remove("hidden");
+        return;
+    }
+
+    infoPanel.innerHTML = `
+      <div class="text-center text-sm text-gray-400">Fetching details about ${disease}...</div>
+    `;
+    infoPanel.classList.remove("hidden");
+
+    const prompt = `Give farmer-friendly information about this cattle/buffalo disease: ${disease}.
+Format it exactly like this:
+
+Causes:
+- [point 1]
+- [point 2]
+
+Prevention:
+- [point 1]
+- [point 2]
+
+Treatment:
+- [point 1]
+- [point 2]
+
+Keep it short, clear, and practical.`;
+
+    const payload = {
+        contents: [{
+            parts: [{ text: prompt }]
+        }]
+    };
+
+    try {
+        const response = await callGeminiAPI(payload);
+
+        // --- Extract sections dynamically ---
+        const causes = (response.match(/Causes:([\s\S]*?)(?=Prevention:|$)/i)?.[1] || "").trim();
+        const prevention = (response.match(/Prevention:([\s\S]*?)(?=Treatment:|$)/i)?.[1] || "").trim();
+        const treatment = (response.match(/Treatment:([\s\S]*)/i)?.[1] || "").trim();
+
+        // Convert plain text into list items
+        const toList = (text) => {
+            return text
+                .split(/\n|-/) // split by linebreaks or hyphens
+                .map(t => t.trim())
+                .filter(t => t.length > 0)
+                .map(t => `<li>${t}</li>`)
+                .join("");
+        };
+
+        infoPanel.innerHTML = `
+          <div class="p-6 bg-white rounded-xl shadow-md max-w-3xl mx-auto text-gray-800 leading-relaxed">
+            <h2 class="text-2xl font-bold text-green-700 mb-4">🐄 ${disease}</h2>
+
+            <h3 class="text-xl font-semibold mb-2">1. Causes</h3>
+            <ul class="list-disc pl-6 mb-6">${toList(causes)}</ul>
+
+            <h3 class="text-xl font-semibold mb-2">2. Prevention</h3>
+            <ul class="list-disc pl-6 mb-6">${toList(prevention)}</ul>
+
+            <h3 class="text-xl font-semibold mb-2">3. Treatment</h3>
+            <ul class="list-disc pl-6 mb-6">${toList(treatment)}</ul>
+
+            <p class="text-green-700 font-medium mt-4">
+              ✅ Remember: Always consult a veterinarian for serious cases.
+            </p>
+          </div>
+        `;
+    } catch (error) {
+        console.error("Error fetching disease info:", error);
+        infoPanel.textContent = `Failed to fetch disease information: ${error.message}`;
+    }
+});
+
+        // --- URGENT HELP LOGIC ---
+        urgentHelpBtn.addEventListener("click", () => {
+            urgentHelpModal.classList.remove("hidden");
+        });
+        
+        cancelHelpBtn.addEventListener("click", () => {
+            urgentHelpModal.classList.add("hidden");
+        });
+
+        confirmHelpBtn.addEventListener("click", () => {
+            modalTitle.textContent = "Requesting Help...";
+            modalMessage.textContent = "Attempting to get your location. Please approve the request in your browser.";
+            modalActions.classList.add("hidden");
+
+            if (!navigator.geolocation) {
+                modalMessage.textContent = "Geolocation is not supported by your browser.";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    sendHelpRequest(latitude, longitude, currentImageDataUrl);
+                },
+                () => {
+                    modalMessage.textContent = "Unable to retrieve your location. Please ensure location services are enabled and you have granted permission.";
+                    setTimeout(() => urgentHelpModal.classList.add("hidden"), 4000);
+                }
+            );
+        });
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of Earth in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + 
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function findNearestVet(userLat, userLon) {
+            let closestVet = null;
+            let minDistance = Infinity;
+            vetDatabase.forEach(vet => {
+                const distance = getDistance(userLat, userLon, vet.lat, vet.lon);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestVet = vet;
+                }
+            });
+            return closestVet;
+        }
+
+        async function sendHelpRequest(latitude, longitude, imageData) {
+            const nearestVet = findNearestVet(latitude, longitude);
+            if (!nearestVet) {
+                modalMessage.textContent = "Could not find a veterinarian in the database.";
+                return;
+            }
+            
+            const doctorPhoneNumber = nearestVet.phone;
+            modalMessage.textContent = `Location found. Nearest vet is ${nearestVet.name}. Sending SMS alert to ${doctorPhoneNumber}...`;
+
+            const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+            const messageBody = `Urgent FarmVision Alert: Animal requires assistance. Location: ${mapsLink}`;
+
+            const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${CONFIG.TWILIO.accountSid}/Messages.json`;
+
+            try {
+                const response = await fetch(twilioApiUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Basic ' + btoa(`${CONFIG.TWILIO.accountSid}:${CONFIG.TWILIO.authToken}`), 
+                        'Content-Type': 'application/x-www-form-urlencoded' 
+                    },
+                    body: new URLSearchParams({ 
+                        'To': doctorPhoneNumber, 
+                        'From': CONFIG.TWILIO.phoneNumber, 
+                        'Body': messageBody 
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    modalTitle.textContent = "Alert Sent Successfully!";
+                    modalMessage.textContent = `An SMS has been sent to ${nearestVet.name}. SID: ${data.sid}. The modal will close shortly.`;
+                } else { 
+                    throw new Error(data.message || 'Twilio API returned an error.'); 
+                }
+            } catch (error) {
+                console.error("Twilio Error:", error);
+                modalTitle.textContent = "Failed to Send Alert";
+                modalMessage.textContent = `There was an error sending the SMS: ${error.message}.`;
+            } finally {
+                setTimeout(() => {
+                    urgentHelpModal.classList.add("hidden");
+                    // Reset modal for next time
+                    modalTitle.textContent = "Confirm Urgent Help Request";
+                    modalMessage.textContent = "This will find your current location and send an SMS alert to the nearest veterinarian. Do you want to proceed?";
+                    modalActions.classList.remove("hidden");
+                }, 6000);
+            }
+        }
+    </script>
+</body>
+</html>

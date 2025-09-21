@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FarmVision — Classifier</title>
+
+  <!-- Tailwind + DaisyUI + Flowbite -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
+
+  <style>
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      color: #f0fdf4;
+      position: relative;
+      min-height: 100vh;
+    }
+    /* Fixed background */
+    .green-pasture-bg {
+      background-image: url('https://wallpapershome.com/images/pages/pic_h/19901.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+    /* Overlay tint */
+    .green-pasture-bg::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(17, 24, 39, 0.65);
+      z-index: -1;
+    }
+    .profile-card {
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(8px);
+    }
+    .confidence-rainbow {
+      background: linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#8b00ff);
+    }
+
+    /* 🚫 Remove yellow/orange focus borders */
+    :focus {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .btn:focus,
+    .alert:focus,
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none !important;
+      box-shadow: none !important;
+      border-color: transparent !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-6 green-pasture-bg">
+
+  <!-- Navbar -->
+  <nav class="navbar w-full max-w-6xl mb-6 bg-base-100/80 backdrop-blur rounded-xl">
+    <div class="flex-1">
+      <a class="btn btn-ghost normal-case text-lg">FarmVision</a>
+    </div>
+    <div class="flex-none">
+      <ul class="menu menu-horizontal px-1">
+        <li><a href="classifier.html">Classifier</a></li>
+        <li><a href="live-camera.html">Live Camera</a></li>
+        <li><a href="health.html">Health Scan</a></li>
+        <li><a href="history.html">History</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Profile Section -->
+  <div class="w-full max-w-6xl mb-6 profile-card rounded-xl p-4 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <div id="profileAvatar" class="w-14 h-14 rounded-full bg-gradient-to-br from-teal-400 to-green-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg">U</div>
+      <div>
+        <p id="profileName" class="text-xl font-extrabold text-white drop-shadow-md">Welcome</p>
+        <p class="text-sm text-gray-200">Classification Mode</p>
+      </div>
+    </div>
+    <div>
+      <button id="logoutBtn" class="btn btn-error btn-sm">Logout</button>
+    </div>
+  </div>
+
+  <!-- Classifier Section -->
+  <div class="w-full max-w-4xl bg-base-100/80 backdrop-blur rounded-xl p-6 shadow-xl">
+    <h2 class="text-2xl font-bold mb-4">Upload an Animal Image</h2>
+
+    <!-- File Upload -->
+    <div class="mb-6">
+      <input type="file" id="fileInput" accept="image/*" class="file-input file-input-bordered w-full" />
+    </div>
+
+    <!-- Preview + Result -->
+    <div id="previewCard" class="hidden">
+      <h3 class="text-lg font-semibold mb-3">Preview</h3>
+      <div class="card bg-base-200 shadow-lg">
+        <div class="card-body flex flex-col gap-4">
+          <img id="previewImage" class="rounded-lg w-full object-contain max-h-[250px]" />
+          <p class="text-sm text-gray-300">Filename: <span id="fileName"></span></p>
+
+          <!-- Result Section -->
+          <div id="resultBox" class="hidden">
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="font-bold">Verdict: <span id="verdictText"></span></h4>
+              <span id="confidenceBadge" class="badge"></span>
+            </div>
+            <p class="text-sm">Breed: <span id="breedText"></span></p>
+            <div class="w-full h-2 bg-gray-700 rounded-full overflow-hidden my-2">
+              <div id="confidenceBar" class="h-full confidence-rainbow" style="width:0%;"></div>
+            </div>
+            <p class="text-xs text-gray-300">Explanation:</p>
+            <p id="explanationText" class="text-xs text-gray-200"></p>
+
+            <!-- 🔄 Recheck Button -->
+            <button id="recheckBtn" class="btn btn-warning btn-sm mt-3 hidden">Recheck</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-10 text-center text-xs text-white/60">
+    © FarmVision — For BPA pilots
+  </footer>
+
+  <script>
+    // Profile setup
+    (function(){
+      const storedName = localStorage.getItem('userName') || 'User';
+      document.getElementById('profileName').textContent = storedName;
+      document.getElementById('profileAvatar').textContent = storedName.charAt(0).toUpperCase();
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('userName');
+        window.location.href = "index.html";
+      });
+    })();
+
+    const fileInput = document.getElementById("fileInput");
+    const previewCard = document.getElementById("previewCard");
+    const previewImage = document.getElementById("previewImage");
+    const fileName = document.getElementById("fileName");
+    const resultBox = document.getElementById("resultBox");
+    const verdictText = document.getElementById("verdictText");
+    const breedText = document.getElementById("breedText");
+    const confidenceBar = document.getElementById("confidenceBar");
+    const confidenceBadge = document.getElementById("confidenceBadge");
+    const explanationText = document.getElementById("explanationText");
+    const recheckBtn = document.getElementById("recheckBtn");
+
+    let lastImageDataUrl = null;
+
+    // Multiple Gemini API keys
+    const apiKeys = [
+          "AIzaSyASt6sFVBV3WaLd4nx-Px1j3g8p6SNx9po",
+          "AIzaSyDyGUvcbFrTAlYTlB8_WfP-pM6WzYrk9_4",
+          "AIzaSyCQyn4iw3VSBPGvRjQTNtwwbBrqzcvT1js",
+        ];
+    let currentKeyIndex = 0;
+
+    function getCurrentApiKey() {
+      return apiKeys[currentKeyIndex];
+    }
+
+    function switchToNextKey() {
+      currentKeyIndex++;
+      if (currentKeyIndex >= apiKeys.length) {
+        return false; // no more keys
+      }
+      return true;
+    }
+
+    function extractTextFromResponse(obj) {
+      if (!obj) return null;
+      if (typeof obj === "string") return obj;
+      if (Array.isArray(obj)) return obj.map(extractTextFromResponse).join(" ");
+      if (typeof obj === "object") {
+        if (obj.candidates && Array.isArray(obj.candidates)) {
+          return extractTextFromResponse(obj.candidates[0]);
+        }
+        if (obj.content && obj.content.parts) {
+          return obj.content.parts.map(p => p.text || "").join(" ");
+        }
+        return Object.values(obj).map(extractTextFromResponse).join(" ");
+      }
+      return null;
+    }
+
+    async function classifyImage(dataUrl, isRecheck = false) {
+      const base64 = dataUrl.split(",")[1];
+      const instruction = isRecheck
+        ? "Recheck carefully: Classify this animal image again. Ensure the classification is correct. Identify if it is a 'Cattle' or 'Buffalo'. Provide a specific breed name. If the breed is not native to India (foreign), the response MUST be:\nVerdict: Not Indian\nBreed: International\nConfidence: [0-100%]\nExplanation: [Your explanation]. If it is not a cattle or buffalo, then Verdict should be 'Other' and Breed 'N/A'."
+        : "Classify this animal image. Identify if it is a 'Cattle' or 'Buffalo'. Provide a specific breed name. If the breed is not native to India (foreign), the response MUST be:\nVerdict: Not Indian\nBreed: International\nConfidence: [0-100%]\nExplanation: [Your explanation]. If it is not a cattle or buffalo, then Verdict should be 'Other' and Breed 'N/A'.";
+
+      const payload = {
+        contents: [{
+          parts: [
+            { text: instruction },
+            { inlineData: { mimeType: "image/png", data: base64 } }
+          ]
+        }]
+      };
+
+      while (currentKeyIndex < apiKeys.length) {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${encodeURIComponent(getCurrentApiKey())}`;
+        try {
+          const response = await fetch(apiUrl, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
+          if (!response.ok) {
+            if (response.status === 403 || response.status === 429) {
+              if (!switchToNextKey()) throw new Error("All API keys exhausted.");
+              continue;
+            } else {
+              throw new Error("API error " + response.status);
+            }
+          }
+          const json = await response.json();
+          return extractTextFromResponse(json) || "";
+        } catch (err) {
+          if (!switchToNextKey()) throw err;
+        }
+      }
+      throw new Error("No API keys available.");
+    }
+
+    function displayResult(fullText) {
+      const get = (rx) => (fullText.match(rx)?.[1] || "").trim();
+      let verdict = get(/Verdict\s*[:\-]*\s*([A-Za-z ]+)/i) || "Other";
+      let breed = get(/Breed\s*[:\-]*\s*([A-Za-z \-]+)/i);
+      const confidence = get(/Confidence\s*[:\-]*\s*([0-9]{1,3}%?)/i) || "0%";
+      const explanation = get(/Explanation\s*[:\-]*([\s\S]+)/i) || "";
+
+      if (verdict.toLowerCase() === "other" || verdict.toLowerCase() === "others") {
+        breed = "None";
+      } else if (verdict.toLowerCase().includes("not indian")) {
+        verdict = "Not Indian";
+        breed = "International";
+      }
+
+      verdictText.textContent = verdict;
+      breedText.textContent = breed;
+      confidenceBadge.textContent = confidence;
+      const confVal = parseInt(confidence) || 0;
+      confidenceBar.style.width = confVal + "%";
+      explanationText.textContent = explanation || "No explanation provided.";
+
+      resultBox.classList.remove("hidden");
+      recheckBtn.classList.remove("hidden");
+    }
+
+    fileInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        lastImageDataUrl = dataUrl;
+        previewImage.src = dataUrl;
+        fileName.textContent = file.name;
+        previewCard.classList.remove("hidden");
+
+        resultBox.classList.add("hidden");
+        verdictText.textContent = "Processing...";
+        breedText.textContent = "-";
+        confidenceBadge.textContent = "";
+        explanationText.textContent = "";
+        recheckBtn.classList.add("hidden");
+
+        try {
+          const fullText = await classifyImage(dataUrl);
+          displayResult(fullText);
+        } catch (err) {
+          verdictText.textContent = "Error";
+          breedText.textContent = "N/A";
+          explanationText.textContent = "Classification failed: " + err.message;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    recheckBtn.addEventListener("click", async () => {
+      if (!lastImageDataUrl) return;
+
+      verdictText.textContent = "Rechecking...";
+      breedText.textContent = "-";
+      confidenceBadge.textContent = "";
+      explanationText.textContent = "";
+
+      try {
+        const fullText = await classifyImage(lastImageDataUrl, true);
+        displayResult(fullText);
+      } catch (err) {
+        verdictText.textContent = "Error";
+        breedText.textContent = "N/A";
+        explanationText.textContent = "Recheck failed: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

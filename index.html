@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FarmVision — Welcome</title>
+
+  <!-- Tailwind + DaisyUI + Flowbite -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
+
+  <style>
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      color: #f0fdf4;
+      position: relative;
+      min-height: 100vh;
+    }
+
+    /* Fixed farm background */
+    .green-pasture-bg {
+      background-image: url('https://wallpapershome.com/images/pages/pic_h/19901.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+
+    /* Dark overlay */
+    .green-pasture-bg::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(17, 24, 39, 0.65);
+      z-index: -1;
+    }
+
+    /* Glass effect for cards */
+    .card-glass {
+      background: rgba(17, 24, 39, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center green-pasture-bg p-6">
+
+  <!-- Navbar -->
+  <nav class="navbar w-full max-w-6xl mb-10 bg-base-100/80 backdrop-blur rounded-xl">
+    <div class="flex-1">
+      <a class="btn btn-ghost normal-case text-lg">FarmVision</a>
+    </div>
+    <div class="flex-none">
+      <ul class="menu menu-horizontal px-1">
+        <li><a href="classifier.html">Classifier</a></li>
+        <li><a href="live-camera.html">Live Camera</a></li>
+        <li><a href="health.html">Health Scan</a></li>
+        <li><a href="history.html">History</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main grid -->
+  <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+    
+    <!-- LEFT: Hero / Info -->
+    <section class="px-6 py-8">
+      <div class="mb-6">
+        <div class="inline-flex items-center gap-3">
+          <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-white">
+              <path d="M3 13.5C3 9.36 6.36 6 10.5 6S18 9.36 18 13.5 14.64 21 10.5 21 3 17.64 3 13.5z" fill="currentColor" />
+              <path d="M21 8.5C21 6 19 4 16.5 4S12 6 12 8.5 14 13 16.5 13 21 11 21 8.5z" fill="currentColor" opacity="0.9"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl lg:text-3xl font-bold text-white">FarmVision</h1>
+            <p class="text-sm text-white/70">AI-assisted cattle & buffalo breed classification</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="text-3xl lg:text-4xl font-extrabold leading-tight mb-4 tracking-tight text-white">
+        Smart Eyes on Livestock. Health, Breeds, and Beyond.
+      </h2>
+
+      <p class="text-sm text-white/80 mb-6">
+        FarmVision helps FLWs capture consistent breed information at the time of registration.
+        Upload or capture a photo — the system suggests breed and confidence, and flags foreign breeds automatically.
+      </p>
+
+      <ul class="space-y-3 text-sm text-white/80 mb-6">
+        <li>✔ Field-ready — works on low-end phones</li>
+        <li>✔ Explainable — shows model reasoning for trust</li>
+        <li>✔ Audit-friendly — every classification stored with timestamp</li>
+      </ul>
+
+      <div class="flex gap-3">
+        <a href="classifier.html" class="btn btn-primary btn-lg">Start Classifying</a>
+        <a href="live-camera.html" class="btn btn-outline btn-lg">Open Live Camera</a>
+      </div>
+    </section>
+
+    <!-- RIGHT: Sign-in Card -->
+    <section class="px-6 py-8">
+    <div class="card-glass rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+        <div>
+            <h3 class="text-lg font-bold text-white">Quick sign in</h3>
+            <p class="text-xs text-white/70">Enter your name</p>
+        </div>
+        <div class="text-xs text-white/60">v1.0</div>
+        </div>
+
+        <form id="welcomeForm" class="space-y-4">
+        <div>
+            <label for="nameInput" class="block text-xs text-white/70 mb-2">Your name</label>
+            <input id="nameInput" type="text" placeholder="e.g. Ramesh Kumar" required
+            class="input input-bordered w-full bg-gray-800/50 text-white placeholder:text-white/50" />
+        </div>
+        <div class="flex items-center justify-between gap-3">
+            <button type="submit" class="btn btn-block bg-gradient-to-r from-teal-500 to-teal-700 border-0 text-white shadow">
+            Enter FarmVision
+            </button>
+        </div>
+        <div class="text-xs text-white/60">
+            <p>By continuing you agree to <a class="link link-primary" href="#" onclick="alert('Consent: images stored locally for pilot only')">photo consent</a>.</p>
+        </div>
+        </form>
+
+        <div class="divider text-white/40 my-4">or</div>
+
+        <!-- FIX: Buttons grouped together -->
+        <div class="flex flex-col sm:flex-row gap-3">
+        <a href="history.html" class="btn btn-outline btn-sm flex-1">View History</a>
+        <a href="#" id="helpBtn" class="btn btn-ghost btn-sm flex-1">Help</a>
+        </div>
+
+        <div id="hint" class="mt-4 text-xs text-white/60">
+        Tip: For best results, use a clear side profile photo of the animal.
+        </div>
+    </div>
+    </section>
+</main>
+
+  <!-- Footer -->
+  <footer class="mt-10 text-center text-xs text-white/60">
+    © <strong>FarmVision</strong> — Built for BPA pilots
+  </footer>
+
+  <script>
+    const form = document.getElementById('welcomeForm');
+    const nameInput = document.getElementById('nameInput');
+    const storedName = localStorage.getItem('userName');
+
+    if (storedName) {
+      // Show welcome back
+      document.querySelector("h3").textContent = `Welcome back, ${storedName}`;
+      nameInput.value = storedName;
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const userName = nameInput.value.trim();
+      if (userName) {
+        localStorage.setItem('userName', userName);
+        form.querySelector('button[type="submit"]').disabled = true;
+        form.querySelector('button[type="submit"]').textContent = "Entering...";
+        setTimeout(() => {
+          window.location.href = 'classifier.html';
+        }, 300);
+      }
+    });
+
+    document.getElementById('helpBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      alert('Photo tips:\n1) Side profile preferred\n2) Good lighting\n\nThis app flags foreign breeds and asks you to confirm breed on registration.');
+    });
+  </script>
+</body>
+</html>

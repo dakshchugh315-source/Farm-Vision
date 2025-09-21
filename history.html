@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FarmVision - History</title>
+
+  <!-- Tailwind + DaisyUI + Flowbite -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
+
+  <style>
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      color: #f0fdf4;
+      position: relative;
+      min-height: 100vh;
+    }
+    .green-pasture-bg {
+      background-image: url('https://wallpapershome.com/images/pages/pic_h/19901.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+    .green-pasture-bg::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(17, 24, 39, 0.6);
+      z-index: -1;
+    }
+    .confidence-rainbow {
+      background: linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#8b00ff);
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6 flex flex-col items-center green-pasture-bg">
+
+  <!-- Navbar -->
+  <nav class="navbar w-full max-w-6xl mb-6 bg-base-100/80 backdrop-blur rounded-xl">
+    <div class="flex-1">
+      <a class="btn btn-ghost normal-case text-lg">FarmVision</a>
+    </div>
+    <div class="flex-none">
+      <ul class="menu menu-horizontal px-1">
+        <li><a href="classifier.html">Classifier</a></li>
+        <li><a href="live-camera.html">Live Camera</a></li>
+        <li><a href="health.html">Health Scan</a></li>
+        <li><a href="history.html">History</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Header -->
+  <div class="w-full max-w-6xl flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold">Classification History</h1>
+      <p class="text-sm text-gray-200">Review all your past classifications from uploads, live camera, and health scans.</p>
+    </div>
+    <div class="flex gap-2">
+      <button id="exportJsonBtn" class="btn btn-outline btn-sm">Export JSON</button>
+      <button id="exportCsvBtn" class="btn btn-outline btn-sm">Export CSV</button>
+      <button id="clearHistoryBtn" class="btn btn-error btn-sm">Clear All</button>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div id="historyGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full max-w-6xl"></div>
+  <div id="noHistoryMessage" class="hidden text-center text-gray-300 mt-12">
+    No classification history found.
+  </div>
+
+  <!-- Full image modal -->
+  <div id="imageModal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+    <div class="relative p-4 w-full max-w-3xl">
+      <div class="relative bg-base-100 rounded-lg shadow dark:bg-gray-800">
+        <button type="button" class="absolute top-3 right-3 text-gray-400 hover:text-white" data-modal-hide="imageModal">&times;</button>
+        <div class="p-4">
+          <img id="modalImage" src="" class="rounded-lg w-full object-contain max-h-[80vh]" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const historyGrid = document.getElementById("historyGrid");
+    const noHistoryMessage = document.getElementById("noHistoryMessage");
+    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+    const exportJsonBtn = document.getElementById("exportJsonBtn");
+    const exportCsvBtn = document.getElementById("exportCsvBtn");
+    const modal = document.getElementById("imageModal");
+    const modalImage = document.getElementById("modalImage");
+
+    function parseLiveCamResult(result) {
+      const match = result.match(/^Verdict: (.*?)\. Breed: (.*?)\. Confidence: (.*?)\. Box: \[(.*?)\]. (.*)/s);
+      if (!match) return { verdict: "Other", breed: "N/A", confidence: "0%", explanation: result };
+      return { verdict: match[1], breed: match[2], confidence: match[3], explanation: match[5] };
+    }
+
+    function normalize(item) {
+      if (item.verdict && item.explanation !== undefined) return item;
+
+      if (item.result) {
+        const parsed = parseLiveCamResult(item.result);
+        return {
+          timestamp: item.timestamp,
+          verdict: parsed.verdict,
+          breed: parsed.breed,
+          confidence: parsed.confidence,
+          explanation: parsed.explanation,
+          imageData: item.imageData || "",
+          name: item.imageName || "Live Capture"
+        };
+      }
+
+      if (item.verdict === "Health Scan") {
+        return {
+          timestamp: item.timestamp,
+          verdict: "Health Scan",
+          breed: item.breed || "Unknown Condition",
+          confidence: item.confidence || "N/A",
+          explanation: item.explanation || "No health details provided.",
+          disclaimer: item.disclaimer || "",
+          imageData: item.imageData || "",
+          name: item.name || "Health Scan"
+        };
+      }
+      return null;
+    }
+
+    function formatExplanation(item) {
+      if (!item.explanation) return "No explanation";
+
+      if (item.verdict === "Health Scan") {
+        const symMatch = item.explanation.match(/Symptoms:\s*([\s\S]*?)(?:First-Aid:|$)/i);
+        const faMatch  = item.explanation.match(/First-Aid:\s*([\s\S]*?)(?:Disclaimer:|$)/i);
+
+        const symptoms = symMatch ? symMatch[1].trim().split(/\n|-/).filter(t => t.trim()) : [];
+        const firstAid = faMatch ? faMatch[1].trim().split(/\n|-/).filter(t => t.trim()) : [];
+
+        const toList = (arr) => arr.map(t => `<li>${t}</li>`).join("");
+
+        return `
+          <div>
+            <p class="font-semibold text-amber-400">Symptoms:</p>
+            <ul class="list-disc list-inside mb-2">${toList(symptoms)}</ul>
+            <p class="font-semibold text-green-400">First-Aid:</p>
+            <ul class="list-disc list-inside mb-2">${toList(firstAid)}</ul>
+            ${item.disclaimer ? `<p class="text-red-400 mt-2 text-xs">⚠ ${item.disclaimer}</p>` : ""}
+          </div>
+        `;
+      }
+
+      return item.explanation.replace(/\n/g, "<br>");
+    }
+
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem("farmVisionHistory")) || [];
+      historyGrid.innerHTML = "";
+      if (history.length === 0) { noHistoryMessage.classList.remove("hidden"); return; }
+      noHistoryMessage.classList.add("hidden");
+
+      history.forEach((raw, index) => {
+        const item = normalize(raw);
+        if (!item) return;
+
+        const confVal = parseInt(item.confidence) || 0;
+        const emoji = item.verdict.toLowerCase() === "cattle" ? "🐄" :
+                      item.verdict.toLowerCase() === "buffalo" ? "🐃" :
+                      item.verdict.toLowerCase() === "health scan" ? "🩺" : "❓";
+
+        const card = document.createElement("div");
+        card.className = "card bg-base-100 shadow-xl rounded-2xl overflow-hidden flex flex-col";
+
+        card.innerHTML = `
+          <figure class="h-40 bg-gray-800 flex items-center justify-center overflow-hidden">
+            ${item.imageData ? `<img src="${item.imageData}" alt="thumbnail" class="object-cover w-full h-full">` : `<span class="text-gray-400 text-sm">No image</span>`}
+          </figure>
+          <div class="card-body p-4 flex flex-col gap-2">
+            <div class="flex justify-between items-center">
+              <h2 class="card-title text-base">${item.verdict} - ${item.breed} ${emoji}</h2>
+              <span class="badge badge-outline">${item.confidence}</span>
+            </div>
+            <p class="text-xs text-gray-400">${item.timestamp}</p>
+            <div class="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div class="h-full confidence-rainbow" style="width:${confVal}%;"></div>
+            </div>
+            <div class="collapse collapse-arrow bg-base-200 mt-2">
+              <input type="checkbox" id="exp-${index}" />
+              <label for="exp-${index}" class="collapse-title text-sm font-medium">Explanation</label>
+              <div class="collapse-content text-xs text-gray-300 whitespace-pre-line">${formatExplanation(item)}</div>
+            </div>
+            <div class="mt-3 flex justify-between">
+              <button class="btn btn-xs btn-outline" onclick="viewImage('${item.imageData || ""}')">View Full</button>
+              <button class="btn btn-xs btn-error" onclick="deleteEntry(${index})">Delete</button>
+            </div>
+          </div>
+        `;
+        historyGrid.appendChild(card);
+      });
+    }
+
+    function deleteEntry(index) {
+      const history = JSON.parse(localStorage.getItem("farmVisionHistory")) || [];
+      history.splice(index, 1);
+      localStorage.setItem("farmVisionHistory", JSON.stringify(history));
+      loadHistory();
+    }
+
+    function viewImage(src) {
+      if (!src) return;
+      modal.classList.remove("hidden");
+      modalImage.src = src;
+    }
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal || e.target.hasAttribute("data-modal-hide")) {
+        modal.classList.add("hidden");
+        modalImage.src = "";
+      }
+    });
+
+    clearHistoryBtn.addEventListener("click", () => {
+      if (confirm("Clear all history?")) {
+        localStorage.removeItem("farmVisionHistory");
+        loadHistory();
+      }
+    });
+
+    exportJsonBtn.addEventListener("click", () => {
+      const history = localStorage.getItem("farmVisionHistory") || "[]";
+      const blob = new Blob([history], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "farmVisionHistory.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    exportCsvBtn.addEventListener("click", () => {
+      const history = JSON.parse(localStorage.getItem("farmVisionHistory")) || [];
+      if (history.length === 0) return;
+      const rows = [["Timestamp","Verdict","Breed","Confidence","Explanation","Name"]];
+      history.forEach(raw => {
+        const item = normalize(raw);
+        if (item) rows.push([item.timestamp,item.verdict,item.breed,item.confidence,(item.explanation || "").replace(/\n/g," "),item.name]);
+      });
+      const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "farmVisionHistory.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    loadHistory();
+  </script>
+</body>
+</html>
